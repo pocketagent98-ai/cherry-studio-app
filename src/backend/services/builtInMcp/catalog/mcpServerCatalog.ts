@@ -69,22 +69,6 @@ const NONE: McpCatalogAuth = { kind: 'none' };
 export const mcpServerCatalog: readonly McpCatalogEntry[] = [
   // ── Dev tools ────────────────────────────────────────────────────────────
   {
-    id: 'github',
-    name: 'GitHub',
-    summary: 'Repositories, issues, pull requests, Actions and code search.',
-    category: 'dev-tools',
-    endpointUrl: 'https://api.githubcopilot.com/mcp/',
-    auth: [
-      oauth('Sign in with GitHub'),
-      bearer('Personal access token', 'https://github.com/settings/personal-access-tokens/new'),
-    ],
-    website: 'https://github.com',
-    privacy:
-      'https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement',
-    icon: 'github',
-    source: 'https://docs.github.com/en/copilot/customizing-copilot/using-model-context-protocol',
-  },
-  {
     id: 'gitlab',
     name: 'GitLab',
     summary: 'Projects, merge requests and issues from your GitLab instance.',
@@ -343,18 +327,6 @@ export const mcpServerCatalog: readonly McpCatalogEntry[] = [
     source: 'https://appwrite.io/docs/tooling/mcp',
   },
   // ── Productivity / knowledge ─────────────────────────────────────────────
-  {
-    id: 'notion',
-    name: 'Notion',
-    summary: 'Search pages and databases and draft content in your workspace.',
-    category: 'productivity',
-    endpointUrl: 'https://mcp.notion.com/mcp',
-    auth: [oauth('Sign in with Notion')],
-    website: 'https://www.notion.com',
-    privacy: 'https://www.notion.com/privacy',
-    icon: 'notion',
-    source: 'https://developers.notion.com/docs/mcp',
-  },
   {
     id: 'atlassian',
     name: 'Atlassian (Jira & Confluence)',
