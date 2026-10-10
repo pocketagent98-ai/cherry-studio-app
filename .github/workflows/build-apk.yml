@@ -60,8 +60,6 @@ jobs:
           echo "ANDROID_HOME=${ANDROID_SDK_ROOT}" >> "$GITHUB_ENV"
           yes | "${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
 
-      # A throwaway signing key so the release APK installs on a device. Expo's
-      # release build is otherwise unsigned and Android rejects it as invalid.
       - name: Generate release keystore
         run: |
           keytool -genkeypair -v \
@@ -80,28 +78,43 @@ jobs:
 
       # Release lint (lintVital) is skipped: it OOMs the Gradle daemon
       # (Metaspace) on this dependency graph and is not needed to produce the
-      # APK. Signing is injected via android.injected.signing.* so the generated
-      # Gradle project does not need editing. Metaspace is raised as a
-      # belt-and-braces measure.
-      - name: Build signed release APK
+      # APK. Metaspace is raised as a belt-and-braces measure.
+      - name: Build release APK
         working-directory: android
         run: >-
           ./gradlew assembleRelease --no-daemon
           -x lintVitalRelease -x lintVitalAnalyzeRelease
           -Dorg.gradle.jvmargs="-Xmx4096m -XX:MaxMetaspaceSize=1536m"
-          -Pandroid.injected.signing.store.file=$GITHUB_WORKSPACE/release.keystore
-          -Pandroid.injected.signing.store.password=$KEYSTORE_PASSWORD
-          -Pandroid.injected.signing.key.alias=$KEY_ALIAS
-          -Pandroid.injected.signing.key.password=$KEYSTORE_PASSWORD
 
-      - name: Verify APK signature and rename
+      # Expo's release build only gets a v2 signature. Devices/ROMs that do not
+      # accept a v1-less APK reject it as "package appears to be invalid", so the
+      # APK is re-signed with the v1 (JAR), v2 and v3 schemes for compatibility.
+      - name: Re-sign APK with v1 + v2 + v3 schemes
         working-directory: android
         run: |
           set -euo pipefail
-          apk=$(ls app/build/outputs/apk/release/*.apk | head -1)
-          apksigner=$(ls -d "${ANDROID_SDK_ROOT}"/build-tools/*/apksigner | sort -V | tail -1)
-          "$apksigner" verify --print-certs "$apk"
-          mv "$apk" app/build/outputs/apk/release/cherry-studio-superagent.apk
+          bt=$(ls -d "${ANDROID_SDK_ROOT}"/build-tools/* | sort -V | tail -1)
+          in_apk=$(ls app/build/outputs/apk/release/*.apk | head -1)
+          "$bt/apksigner" sign \
+            --ks "$GITHUB_WORKSPACE/release.keystore" \
+            --ks-pass "pass:${KEYSTORE_PASSWORD}" \
+            --key-pass "pass:${KEYSTORE_PASSWORD}" \
+            --ks-key-alias "$KEY_ALIAS" \
+            --min-sdk-version 26 \
+            --v1-signing-enabled true --v2-signing-enabled true --v3-signing-enabled true \
+            --out app/build/outputs/apk/release/cherry-studio-superagent.apk \
+            "$in_apk"
+
+      - name: Verify APK signature schemes
+        working-directory: android
+        run: |
+          set -euo pipefail
+          bt=$(ls -d "${ANDROID_SDK_ROOT}"/build-tools/* | sort -V | tail -1)
+          out=$("$bt/apksigner" verify --min-sdk-version 23 --verbose \
+            app/build/outputs/apk/release/cherry-studio-superagent.apk)
+          echo "$out"
+          echo "$out" | grep -q "Verified using v1 scheme (JAR signing): true"
+          echo "$out" | grep -q "Verified using v2 scheme (APK Signature Scheme v2): true"
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
