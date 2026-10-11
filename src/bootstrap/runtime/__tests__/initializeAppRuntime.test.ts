@@ -6,7 +6,7 @@ const mockSetTheme = jest.fn();
 const mockUpdateCSSVariables = jest.fn();
 const mockInitI18n = jest.fn(async (..._args: unknown[]) => undefined);
 const mockCreateInitialAgent = jest.fn(async (..._args: unknown[]) => undefined);
-const mockEnsureSuperAgent = jest.fn(async (..._args: unknown[]) => undefined);
+const mockEnsureDefaultAgents = jest.fn(async (..._args: unknown[]) => undefined);
 const mockWaitForStartupCoverPresented = jest.fn(async (): Promise<void> => undefined);
 
 jest.mock('../startupCoverHandoff', () => ({
@@ -37,7 +37,7 @@ function createServices(message?: {
   return {
     agentData: {
       createInitialAgent: mockCreateInitialAgent,
-      ensureSuperAgent: mockEnsureSuperAgent,
+      ensureDefaultAgents: mockEnsureDefaultAgents,
     },
     message,
     preference: {
