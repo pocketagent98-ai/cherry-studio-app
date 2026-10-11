@@ -1,6 +1,6 @@
 import { Button, ContentState, useAlert } from '@cherrystudio/ui/components';
 import { useRouter } from 'expo-router';
-import type { ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Text, View } from 'react-native';
 
@@ -15,10 +15,13 @@ import { useInteractiveConnect } from './useInteractiveConnect';
 export function InteractiveConnect({
   entry,
   method,
+  autoStart,
   children,
 }: {
   entry: PluginCatalogEntry;
   method: PluginInteractiveMethod;
+  /** Begin authorization immediately on mount (used when the plugin list's add button opens this). */
+  autoStart?: boolean;
   children: ReactNode;
 }) {
   const { t } = useTranslation();
@@ -43,6 +46,16 @@ export function InteractiveConnect({
   const name = t(`plugins.catalog.${entry.id}.name`, { defaultValue: entry.name ?? entry.id });
   const textKey = `plugins.catalog.${entry.id}.authMethods.${method.id}`;
   const applicationFields = method.applicationFields;
+  // One-tap connect: when opened from the plugin list's add button, start the
+  // browser authorization without waiting for the user to press Authorize.
+  const autoStarted = useRef(false);
+  useEffect(() => {
+    if (!autoStart || autoStarted.current) return;
+    if (isBusy) return;
+    if (state && state.status !== 'idle') return;
+    autoStarted.current = true;
+    void begin();
+  }, [autoStart, isBusy, state, begin]);
   const waiting = state?.status === 'waiting' || state?.status === 'callback' ? state : null;
   const review = state?.status === 'review' ? state : null;
   const finalStatus =
