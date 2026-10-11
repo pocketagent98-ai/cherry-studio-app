@@ -48,7 +48,7 @@ export function PluginCatalogGroup() {
                     onPress: () =>
                       router.push({
                         pathname: '/plugins/[pluginId]/connect',
-                        params: { pluginId: id },
+                        params: { pluginId: id, autoStart: '1' },
                       }),
                   }
                 : undefined
