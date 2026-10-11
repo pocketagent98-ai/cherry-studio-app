@@ -11,7 +11,10 @@ import { CredentialConnect } from './CredentialConnect';
 import { InteractiveConnect } from './InteractiveConnect';
 
 export function PluginConnectScreen() {
-  const { pluginId } = useLocalSearchParams<{ pluginId: string }>();
+  const { pluginId, autoStart } = useLocalSearchParams<{
+    pluginId: string;
+    autoStart?: string;
+  }>();
   const parsed = PluginIdSchema.safeParse(pluginId);
   const { t } = useTranslation();
   const catalog = usePluginCatalog();
@@ -26,10 +29,10 @@ export function PluginConnectScreen() {
     );
   const entry = catalog.data?.find((item) => item.id === parsed.data);
   if (!entry) return <ContentState.Empty title={t('plugins.unavailable')} />;
-  return <PluginConnect key={entry.id} entry={entry} />;
+  return <PluginConnect key={entry.id} entry={entry} autoStart={autoStart === '1'} />;
 }
 
-function PluginConnect({ entry }: { entry: PluginCatalogEntry }) {
+function PluginConnect({ entry, autoStart }: { entry: PluginCatalogEntry; autoStart?: boolean }) {
   const { t } = useTranslation();
   const [methodId, setMethodId] = useState(entry.authMethods[0]?.id);
   const method = entry.authMethods.find((candidate) => candidate.id === methodId);
@@ -49,7 +52,7 @@ function PluginConnect({ entry }: { entry: PluginCatalogEntry }) {
       </View>
     ) : null;
   return method.kind === 'interactive' ? (
-    <InteractiveConnect key={method.id} entry={entry} method={method}>
+    <InteractiveConnect key={method.id} entry={entry} method={method} autoStart={autoStart}>
       {alternatives}
     </InteractiveConnect>
   ) : (
