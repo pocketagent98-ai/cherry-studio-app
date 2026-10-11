@@ -227,9 +227,8 @@ function McpServerEditor({ server, serverId }: { server?: McpServer; serverId?: 
 
   /**
    * OAuth 2.0 PKCE auto-connect: discover the server's authorization metadata,
-   * run the browser flow and store the token in the device keystore, then fold
-   * the resulting Authorization header into the form so the normal save path
-   * persists the connection.
+   * run the browser flow, store the token in the device keystore and connect the
+   * server with the resulting Authorization header in one step.
    */
   const handleOAuthConnect = useCallback(async () => {
     const endpointUrl = form.endpointUrl.trim();
@@ -242,7 +241,17 @@ function McpServerEditor({ server, serverId }: { server?: McpServer; serverId?: 
       const { headers } = await runCustomMcpOAuth(endpointUrl);
       const existing = parseMcpHeaders(form.headers);
       const merged = { ...(existing.ok ? existing.value : {}), ...headers };
-      setForm((current) => ({ ...current, headers: serializeMcpHeaders(merged) }));
+      const name =
+        form.name.trim() || getFallbackServerName(endpointUrl, t('settings.mcp.defaultName'));
+      if (serverId) {
+        await updateServer(serverId, { endpointUrl, headers: merged, name });
+        setForm({ endpointUrl, headers: serializeMcpHeaders(merged), name });
+      } else {
+        const serverInfo = await mcp.getServerInfo({ endpointUrl, headers: merged });
+        const finalName = serverInfo.title?.trim() || serverInfo.name.trim() || name;
+        await createServer({ endpointUrl, headers: merged, isEnabled: true, name: finalName });
+        if (isFocused.current) router.back();
+      }
       toast.show({ label: t('settings.mcp.oauth.success'), variant: 'success' });
     } catch (error) {
       logger.error('Failed to authorize custom MCP server', error as Error);
@@ -250,7 +259,18 @@ function McpServerEditor({ server, serverId }: { server?: McpServer; serverId?: 
     } finally {
       setIsSaving(false);
     }
-  }, [form.endpointUrl, form.headers, t, toast]);
+  }, [
+    createServer,
+    form.endpointUrl,
+    form.headers,
+    form.name,
+    mcp,
+    router,
+    serverId,
+    t,
+    toast,
+    updateServer,
+  ]);
 
   const handleDelete = useCallback(() => {
     if (!serverId) {
@@ -322,15 +342,26 @@ function McpServerEditor({ server, serverId }: { server?: McpServer; serverId?: 
       />
       <PluginPage
         footer={
-          <Button
-            disabled={!isDirty || isBusy || isDeleting}
-            loading={isBusy}
-            onPress={() => void handleSave()}
-            size="lg"
-            testID="mcp-server-save"
-          >
-            {isCreating ? t('settings.mcp.addServer') : t('common.save')}
-          </Button>
+          <View className="gap-3">
+            <Button
+              disabled={!isValidServerUrl(form.endpointUrl.trim()) || isBusy || isDeleting}
+              loading={isBusy}
+              onPress={() => void handleOAuthConnect()}
+              size="lg"
+              testID="mcp-server-oauth-connect"
+            >
+              {t('settings.mcp.oauth.connect')}
+            </Button>
+            <Button
+              variant="ghost"
+              disabled={!isDirty || isBusy || isDeleting}
+              onPress={() => void handleSave()}
+              size="lg"
+              testID="mcp-server-save"
+            >
+              {isCreating ? t('settings.mcp.addServer') : t('common.save')}
+            </Button>
+          </View>
         }
         testID="mcp-server"
       >
