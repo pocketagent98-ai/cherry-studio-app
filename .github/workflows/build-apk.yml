@@ -23,6 +23,11 @@ env:
   SENTRY_ALLOW_FAILURE: 'true'
   KEYSTORE_PASSWORD: cherrystudio
   KEY_ALIAS: cherrystudio
+  # A single throwaway signing key, base64-encoded, reused for every build so
+  # successive APKs share one signature and update in place instead of
+  # conflicting with an existing install. (Move to a repository secret if you
+  # prefer not to keep it in the workflow file.)
+  KEYSTORE_BASE64: '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'
 
 jobs:
   build:
@@ -60,13 +65,8 @@ jobs:
           echo "ANDROID_HOME=${ANDROID_SDK_ROOT}" >> "$GITHUB_ENV"
           yes | "${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
 
-      - name: Generate release keystore
-        run: |
-          keytool -genkeypair -v \
-            -keystore "$GITHUB_WORKSPACE/release.keystore" \
-            -alias "$KEY_ALIAS" -keyalg RSA -keysize 2048 -validity 10000 \
-            -storepass "$KEYSTORE_PASSWORD" -keypass "$KEYSTORE_PASSWORD" \
-            -dname "CN=Cherry Studio Super Agent,O=Cherry Studio,C=IN"
+      - name: Restore release keystore
+        run: echo "$KEYSTORE_BASE64" | base64 -d > "$GITHUB_WORKSPACE/release.keystore"
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
