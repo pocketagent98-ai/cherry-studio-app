@@ -71,6 +71,15 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # Sideload build: give the APK a distinct Android package id so it installs
+      # alongside an existing Cherry Studio that was signed with another key,
+      # instead of being rejected as a package conflict. The source keeps the
+      # upstream package id.
+      - name: Set a distinct Android package id
+        run: |
+          jq '.expo.android.package = "com.cherryai.cherrystudio_superagent"' app.json > app.json.patched
+          mv app.json.patched app.json
+
       - name: Prebuild Android native project
         env:
           PROFILE: production
