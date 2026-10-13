@@ -16,6 +16,7 @@ import { withUniwind } from 'uniwind';
 import { AppBootstrapGate, AppBootstrapProvider, useAppBootstrapState } from '@/bootstrap';
 import { reportStartupCoverPresented } from '@/bootstrap/runtime/startupCoverHandoff';
 import { BackgroundActivityBridge } from '@/frontend/appShell/backgroundActivity';
+import { StartupPermissionRequester } from '@/frontend/appShell/backgroundPermissions';
 import { BackupDialog, RestoreOutcomeNotice } from '@/frontend/appShell/backup';
 import { ConversationProvider } from '@/frontend/appShell/conversation';
 import { headerScreenOptions, RouteHeaderProvider } from '@/frontend/appShell/header';
@@ -74,6 +75,7 @@ function RootLayout() {
                                 <RouteHeaderProvider rootAction="back">
                                   <AppUpdateObserver />
                                   <BackgroundActivityBridge />
+                                  <StartupPermissionRequester />
                                   <LanguagePreferenceObserver />
                                   <SystemEntryBridge />
                                   <ConversationProvider>
