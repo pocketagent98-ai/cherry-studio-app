@@ -48,6 +48,8 @@ export interface PreferenceSchema {
   'app.user.name': string;
 
   'app.background_run_guidance.seen': boolean;
+  /** Whether the startup pass already asked for background execution permissions. */
+  'app.background_permissions.prompted': boolean;
 
   /** iOS presentation only; unfinished conversation execution is always protected. */
   'chat.background_reply.enabled': boolean;
@@ -90,6 +92,7 @@ export const PreferenceDefaults = {
   'app.user.name': '',
 
   'app.background_run_guidance.seen': false,
+  'app.background_permissions.prompted': false,
 
   'chat.background_reply.enabled': true,
   'chat.completion_notifications.enabled': true,
