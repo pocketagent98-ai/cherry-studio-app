@@ -11,10 +11,7 @@ import { CredentialConnect } from './CredentialConnect';
 import { InteractiveConnect } from './InteractiveConnect';
 
 export function PluginConnectScreen() {
-  const { pluginId, autoStart } = useLocalSearchParams<{
-    pluginId: string;
-    autoStart?: string;
-  }>();
+  const { pluginId } = useLocalSearchParams<{ pluginId: string }>();
   const parsed = PluginIdSchema.safeParse(pluginId);
   const { t } = useTranslation();
   const catalog = usePluginCatalog();
@@ -29,12 +26,18 @@ export function PluginConnectScreen() {
     );
   const entry = catalog.data?.find((item) => item.id === parsed.data);
   if (!entry) return <ContentState.Empty title={t('plugins.unavailable')} />;
-  return <PluginConnect key={entry.id} entry={entry} autoStart={autoStart === '1'} />;
+  return <PluginConnect key={entry.id} entry={entry} />;
 }
 
-function PluginConnect({ entry, autoStart }: { entry: PluginCatalogEntry; autoStart?: boolean }) {
+function PluginConnect({ entry }: { entry: PluginCatalogEntry }) {
   const { t } = useTranslation();
-  const [methodId, setMethodId] = useState(entry.authMethods[0]?.id);
+  // OAuth first: when a provider offers a browser authorization it is the default,
+  // and a token field is only the secondary alternative.
+  const [methodId, setMethodId] = useState(
+    () =>
+      (entry.authMethods.find((candidate) => candidate.kind === 'interactive') ??
+        entry.authMethods[0])?.id,
+  );
   const method = entry.authMethods.find((candidate) => candidate.id === methodId);
   if (!method) return <ContentState.Empty title={t('plugins.unavailable')} />;
   const alternatives =
@@ -52,7 +55,7 @@ function PluginConnect({ entry, autoStart }: { entry: PluginCatalogEntry; autoSt
       </View>
     ) : null;
   return method.kind === 'interactive' ? (
-    <InteractiveConnect key={method.id} entry={entry} method={method} autoStart={autoStart}>
+    <InteractiveConnect key={method.id} entry={entry} method={method}>
       {alternatives}
     </InteractiveConnect>
   ) : (
