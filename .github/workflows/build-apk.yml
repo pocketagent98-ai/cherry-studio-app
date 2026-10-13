@@ -77,8 +77,10 @@ jobs:
       # upstream package id.
       - name: Set a distinct Android package id
         run: |
-          jq '.expo.android.package = "com.cherryai.cherrystudio_superagent"' app.json > app.json.patched
+          jq '.expo.android.package = "com.cherryai.cherrystudio_superagent"
+              | .expo.android.permissions = (((.expo.android.permissions // []) + ["android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"]) | unique)' app.json > app.json.patched
           mv app.json.patched app.json
+          grep -n '"package"\|REQUEST_IGNORE_BATTERY' app.json
 
       - name: Prebuild Android native project
         env:
