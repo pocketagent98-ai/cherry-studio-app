@@ -25,6 +25,7 @@ import type { RuntimeModel, RuntimeModelPreflight, RuntimeUsageContext } from '.
 import { bindPiStream, resolvePiApiAdapter, type SupportedPiApi } from './piApiAdapters';
 import { withPiApiKeyFallback } from './piApiKeyFallback';
 import { withPiDeepseekDsml } from './piDeepseekDsml';
+import { isQuotaFailure, resolveFallbackModels } from './piModelFallback';
 import { requirePiLanguageBinding, resolvePiLanguageBinding } from './piLanguageBinding';
 import {
   endpointForPiApi,
@@ -50,17 +51,19 @@ class PiModelResolutionError extends Error {
 export function createPiModelResolver(accounts?: {
   resolveAuth(provider: Provider, signal?: AbortSignal): Promise<ResolvedPiOAuth | undefined>;
 }): PiRuntimeDependencies {
-  return {
-    async preflightModel(runtimeModel): Promise<RuntimeModelPreflight> {
-      return (await resolveConfiguredPiModel(runtimeModel)).preflight;
-    },
-    async resolveModel(
-      runtimeModel,
-      runtimeOptions,
-      sessionId,
-      apiKeyOverride,
-      signal,
-    ): Promise<PiModelResolution> {
+  type ResolveModelParams = Parameters<PiRuntimeDependencies['resolveModel']>;
+
+  /**
+   * Resolves one configured model into everything a call to it needs. `resolveModel`
+   * composes this with the quota-driven model fallback below.
+   */
+  const resolveOne = async (
+    runtimeModel: ResolveModelParams[0],
+    runtimeOptions: ResolveModelParams[1],
+    sessionId: ResolveModelParams[2],
+    apiKeyOverride: ResolveModelParams[3],
+    signal: ResolveModelParams[4],
+  ): Promise<PiModelResolution> => {
       const {
         adapter: configuredAdapter,
         connection,
@@ -312,6 +315,51 @@ export function createPiModelResolver(accounts?: {
         supportsTools: preflight.supportsTools,
         usageContext,
       };
+  };
+
+  return {
+    async preflightModel(runtimeModel): Promise<RuntimeModelPreflight> {
+      return (await resolveConfiguredPiModel(runtimeModel)).preflight;
+    },
+    async resolveModel(
+      runtimeModel,
+      runtimeOptions,
+      sessionId,
+      apiKeyOverride,
+      signal,
+    ): Promise<PiModelResolution> {
+      const primary = await resolveOne(
+        runtimeModel,
+        runtimeOptions,
+        sessionId,
+        apiKeyOverride,
+        signal,
+      );
+      try {
+        const fallbacks = await resolveFallbackModels(runtimeModel);
+        if (fallbacks.length === 0) return primary;
+        const candidates: (() => Promise<PiModelResolution['streamFn']>)[] = [
+          async () => primary.streamFn,
+        ];
+        for (const fallback of fallbacks) {
+          candidates.push(async () => {
+            const resolved = await resolveOne(
+              fallback,
+              runtimeOptions,
+              sessionId,
+              undefined,
+              signal,
+            );
+            // The candidate carries its own model, so the turn's model is ignored.
+            return (model, context, options) => resolved.streamFn(resolved.model, context, options);
+          });
+        }
+        // A rate-limited provider must not end the turn: try another configured model.
+        return { ...primary, streamFn: withPiApiKeyFallback(candidates, isQuotaFailure) };
+      } catch {
+        // Candidate selection is best effort; the requested model always remains valid.
+        return primary;
+      }
     },
   };
 }
