@@ -16,8 +16,15 @@ import {
  * credential once in ring order; the one that succeeds serves later tool steps. Only
  * cancellation and HTTP 400, which rejects the request itself, keep the failing credential.
  * A credential that cannot be resolved counts as a failed attempt like any other.
+ *
+ * `shouldAdvance` narrows which failures are worth another candidate. It defaults to every
+ * failure, which is what rotating API keys wants; the model-level fallback passes a quota
+ * predicate so a bad request never moves a conversation to another provider.
  */
-export function withPiApiKeyFallback(credentials: readonly (() => Promise<StreamFn>)[]): StreamFn {
+export function withPiApiKeyFallback(
+  credentials: readonly (() => Promise<StreamFn>)[],
+  shouldAdvance: (failure: PiStreamErrorEvent) => boolean = () => true,
+): StreamFn {
   let activeIndex = 0;
   let active: StreamFn | undefined;
 
@@ -80,7 +87,8 @@ export function withPiApiKeyFallback(credentials: readonly (() => Promise<Stream
             !options?.signal?.aborted &&
             failure.reason === 'error' &&
             !hasResponseContent(failure.error) &&
-            !isBadRequest(failure.error)
+            !isBadRequest(failure.error) &&
+            shouldAdvance(failure)
           ) {
             activeIndex = (activeIndex + 1) % credentials.length;
             active = undefined;
